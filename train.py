@@ -70,7 +70,8 @@ def train_model(filename):
 
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
+        print sys.argv
         print "Usage: train.py <filename>"
         exit(1)
 
