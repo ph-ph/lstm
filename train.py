@@ -27,9 +27,12 @@ def convert_to_sequences(data, batch_size, d):
         Y.append(y[n*batch_size:(n+1)*batch_size])
     return (np.array(X), np.array(Y))
 
-def train_model(filename):
-    with open(filename, 'r') as f:
-        contents = f.read()
+def train_model(filenames):
+    contents_arr = []
+    for filename in filenames:
+        with open(filename, 'r') as f:
+            contents_arr.append(f.read())
+    contents = "\n".join(contents_arr)
 
     # Now we need to create a dictionary
     d, inverse_d = create_dictionaries(contents)
@@ -69,10 +72,11 @@ def train_model(filename):
               callbacks=[ModelCheckpoint("checkpoint.{epoch:02d}.hdf5")])
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print sys.argv
-        print "Usage: train.py <filename>"
-        exit(1)
+    import argparse
 
-    train_model(sys.argv[1])
+    parser = argparse.ArgumentParser(description="Train RNN model to generate strings of text")
+    parser.add_argument("--train-files", type=str, help="Path to train files", nargs='*', required=True)
+
+    args = parser.parse_args()
+    print "Specified filenames", args.train_files
+    train_model(args.train_files)
