@@ -27,7 +27,7 @@ def convert_to_sequences(data, batch_size, d):
         Y.append(y[n*batch_size:(n+1)*batch_size])
     return (np.array(X), np.array(Y))
 
-def train_model(filenames):
+def train_model(filenames, job_dir):
     contents_arr = []
     for filename in filenames:
         with open(filename, 'r') as f:
@@ -69,14 +69,15 @@ def train_model(filenames):
     model.fit(train_X, train_Y, minibatch_size, 100,
               shuffle=False,
               validation_data=(validation_X, validation_Y),
-              callbacks=[ModelCheckpoint("checkpoint.{epoch:02d}.hdf5")])
+              callbacks=[ModelCheckpoint(job_dir+"checkpoint.{epoch:02d}.hdf5")])
 
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Train RNN model to generate strings of text")
     parser.add_argument("--train-files", type=str, help="Path to train files", nargs='*', required=True)
+    parser.add_argument("--job-dir", type=str, help="Path to the output dir", default="./")
 
     args = parser.parse_args()
-    print "Specified filenames", args.train_files
-    train_model(args.train_files)
+    print "Specified parameters:", args.train_files, args.job_dir
+    train_model(args.train_files, args.job_dir)
