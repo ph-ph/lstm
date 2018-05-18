@@ -1,7 +1,31 @@
+import os
 import numpy as np
 from keras.models import Sequential
 from keras.layers import Input, LSTM, Dense, TimeDistributed
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, Callback
+
+from tensorflow.python.lib.io import file_io
+
+# h5py workaround: copy local models over to GCS if the job_dir is GCS.
+def copy_file_to_gcs(job_dir, file_path):
+  with file_io.FileIO(file_path, mode='r') as input_f:
+    with file_io.FileIO(os.path.join(job_dir, file_path), mode='w+') as output_f:
+        output_f.write(input_f.read())
+
+class UploadToGCS(Callback):
+  """Callback to upload locally saved checkpoint to Google Cloud Storage
+  """
+
+  def __init__(self, job_dir, checkpoint_template):
+    self.job_dir = job_dir
+    self.checkpoint_template = checkpoint_template
+
+  def on_epoch_begin(self, epoch, logs={}):
+    if epoch > 0:
+        checkpoint_file = self.checkpoint_template.format(epoch=epoch)
+        print "uploading file {} to GCS".format(checkpoint_file)
+        copy_file_to_gcs(self.job_dir, checkpoint_file)
+
 
 def create_dictionaries(s):
     unique_chars = list(set(s))
@@ -30,8 +54,13 @@ def convert_to_sequences(data, batch_size, d):
 def train_model(filenames, job_dir):
     contents_arr = []
     for filename in filenames:
-        with open(filename, 'r') as f:
-            contents_arr.append(f.read())
+        if filename.startswith("gs://"):
+            import tensorflow as tf
+            with tf.gfile.Open(filename) as f:
+                contents_arr.append(f.read())
+        else:
+            with open(filename, 'r') as f:
+                contents_arr.append(f.read())
     contents = "\n".join(contents_arr)
 
     # Now we need to create a dictionary
@@ -66,10 +95,16 @@ def train_model(filenames, job_dir):
     train_X, train_Y = convert_to_sequences(train_data, batch_size, d)
     validation_X, validation_Y = convert_to_sequences(validation_data, batch_size, d)
 
+    checkpoint_template = "checkpoint.{epoch:02d}.hdf5"
+    if job_dir.startswith("gs://"):
+        callbacks = [ModelCheckpoint(checkpoint_template), UploadToGCS(job_dir, checkpoint_template)]
+    else:
+        callbacks = [ModelCheckpoint(os.path.join(job_dir, checkpoint_template))]
+
     model.fit(train_X, train_Y, minibatch_size, 100,
               shuffle=False,
               validation_data=(validation_X, validation_Y),
-              callbacks=[ModelCheckpoint(job_dir+"checkpoint.{epoch:02d}.hdf5")])
+              callbacks=callbacks)
 
 if __name__ == "__main__":
     import argparse

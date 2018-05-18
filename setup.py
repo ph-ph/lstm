@@ -1,7 +1,11 @@
 from setuptools import find_packages
 from setuptools import setup
 
-REQUIRED_PACKAGES = ['numpy==1.14.2']
+REQUIRED_PACKAGES = [
+    'numpy==1.14.2',
+    'h5py==2.7.1',
+    'Keras==2.1.5',
+]
 
 setup(
     name='trainer',
